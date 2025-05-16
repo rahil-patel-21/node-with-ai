@@ -13,7 +13,7 @@ export class LLMService {
       return { llm_session_data };
     }
 
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
 
     await page.goto(Env.llm.one.baseUrl, {
