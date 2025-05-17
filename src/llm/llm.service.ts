@@ -95,9 +95,11 @@ export class LLMService {
     const headers = { cookie: body.cookieStr, origin: Env.llm.one.origin };
     delete body.cookieStr;
     let response = await this.api.post(nOneCompletionChat, body, headers);
-    response = response.replace('```json', '');
-    response = response.replace('```', '');
-    response = JSON.parse(response);
+    if (typeof response == 'string') {
+      response = response.replace('```json', '');
+      response = response.replace('```', '');
+      response = JSON.parse(response);
+    }
 
     return response;
   }
