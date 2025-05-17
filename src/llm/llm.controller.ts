@@ -10,4 +10,9 @@ export class LLMController {
   async funInitSession(@Body() body) {
     return await this.service.initSession(body);
   }
+
+  @Post('completion')
+  async funCompletion(@Body() body) {
+    return await this.service.completion(body);
+  }
 }
