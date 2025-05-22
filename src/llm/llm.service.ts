@@ -18,7 +18,7 @@ export class LLMService {
     }
 
     const browser = await puppeteer.launch({
-      headless: false, // ✅ instead of true
+      headless: 'new', // ✅ instead of true
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
