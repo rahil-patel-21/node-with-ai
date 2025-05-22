@@ -28,16 +28,16 @@ export class LLMService {
       waitUntil: 'domcontentloaded',
     });
 
-    await page.waitForSelector(
-      '.inline-flex.items-center.justify-center.rounded-md.text-sm.font-medium.ring-offset-background.transition-colors.focus-visible\\:outline-none.focus-visible\\:ring-2.focus-visible\\:ring-ring.focus-visible\\:ring-offset-2.disabled\\:pointer-events-none.disabled\\:opacity-50.text-primary.underline-offset-4.shadow-none.hover\\:underline.h-8.px-4.py-2.mt-2.underline',
-    );
+    // await page.waitForSelector(
+    //   '.inline-flex.items-center.justify-center.rounded-md.text-sm.font-medium.ring-offset-background.transition-colors.focus-visible\\:outline-none.focus-visible\\:ring-2.focus-visible\\:ring-ring.focus-visible\\:ring-offset-2.disabled\\:pointer-events-none.disabled\\:opacity-50.text-primary.underline-offset-4.shadow-none.hover\\:underline.h-8.px-4.py-2.mt-2.underline',
+    // );
 
-    await page.evaluate(() => {
-      const el = document.getElementsByClassName(
-        'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary underline-offset-4 shadow-none hover:underline h-8 px-4 py-2 mt-2 underline',
-      )[0];
-      if (el) (el as HTMLElement).click();
-    });
+    // await page.evaluate(() => {
+    //   const el = document.getElementsByClassName(
+    //     'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary underline-offset-4 shadow-none hover:underline h-8 px-4 py-2 mt-2 underline',
+    //   )[0];
+    //   if (el) (el as HTMLElement).click();
+    // });
 
     await this.sleep(2500);
     await page.waitForSelector('#chat-input-box');
@@ -101,6 +101,9 @@ export class LLMService {
         response = response.replace('```json', '');
         response = response.replace('```', '');
         response = response.replace('nest-backend-structure.json', '');
+        response = response.replace('code-structure.json', '');
+        response = response.replace('code-structure/folder-structure.json', '');
+        response = response.replace('``', '');
         response = response.trim();
         response = JSON.parse(response);
       } catch (error) {
