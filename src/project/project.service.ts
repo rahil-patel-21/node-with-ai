@@ -33,7 +33,7 @@ export class ProjectService {
 
     this.buildStructureRecursively(response, rootPath);
 
-    return {};
+    return { response };
   }
 
   // Ensure a directory exists or create it
