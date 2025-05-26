@@ -1,15 +1,47 @@
 // Imports
 import * as puppeteer from 'puppeteer';
 import { Env } from 'src/constants/Env';
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ApiService } from 'src/utils/api.service';
 import { nOneCompletionChat } from 'src/constants/network';
 
 const llm_session_data = {};
 
 @Injectable()
-export class LLMService {
+export class LLMService implements OnModuleInit {
   constructor(private readonly api: ApiService) {}
+
+  onModuleInit() {
+    this.initPrePlannedSession();
+  }
+
+  private async initPrePlannedSession() {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    await this.initSession({ sessionId: 'pre_planned_01' }).catch((_) => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    await this.initSession({ sessionId: 'pre_planned_02' }).catch((_) => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    await this.initSession({ sessionId: 'pre_planned_03' }).catch((_) => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    await this.initSession({ sessionId: 'pre_planned_04' }).catch((_) => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    await this.initSession({ sessionId: 'pre_planned_05' }).catch((_) => {});
+  }
+
+  private getPrePlannedSessionId() {
+    const list = [
+      'pre_planned_01',
+      'pre_planned_02',
+      'pre_planned_03',
+      'pre_planned_04',
+      'pre_planned_05',
+    ];
+    return this.getRandomElement(list);
+  }
 
   async initSession(reqData): Promise<{ llm_session_data: any }> {
     // Caching existence
@@ -84,7 +116,11 @@ export class LLMService {
 
   async completion(reqData) {
     const prompt = reqData.prompt;
-    const sessionId = reqData.sessionId;
+    let sessionId = reqData.sessionId;
+
+    if (!sessionId) {
+      sessionId = this.getPrePlannedSessionId();
+    }
 
     if (!llm_session_data[sessionId]) {
       await this.initSession({ sessionId });
@@ -116,5 +152,69 @@ export class LLMService {
 
   sleep(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
+  }
+
+  private getRandomElement<T>(array: T[]): T {
+    const randomIndex = Math.floor(Math.random() * array.length);
+    return array[randomIndex];
+  }
+
+  sanitizeJsonResponse(raw_response) {
+    const match = raw_response
+      .trim()
+      .match(/^`([^`]+)`\n([a-zA-Z]+)\n([\s\S]+)$/);
+    if (match) {
+      // Code content as a string from response
+      if (match[3]) {
+        if (match[3].includes('"code_content": ')) {
+          try {
+            if (match[3].endsWith('`')) {
+              match[3] = match[3].replace(/`/g, '');
+            }
+            console.log('2');
+            return JSON.parse(match[3]).code_content;
+          } catch (error) {
+            console.log({ error });
+          }
+        }
+        console.log('1');
+        if (match[3].endsWith('`')) {
+          match[3] = match[3].replace(/`/g, '');
+        }
+        return match[3];
+      }
+    } else {
+      let match_4_str = this.extractCodeAfterFilenameBlock(raw_response);
+      if (match_4_str.includes('"code_content": ')) {
+        try {
+          if (match_4_str.endsWith('`')) {
+            match_4_str = match_4_str.replace(/`/g, '');
+          }
+          console.log('3');
+          return JSON.parse(match_4_str).code_content;
+        } catch (error) {
+          console.log({ error });
+        }
+      }
+      console.log('4');
+      return match_4_str;
+    }
+  }
+
+  private extractCodeAfterFilenameBlock(response: string): string {
+    const lines = response.trim().split('\n');
+
+    // If first line is a filename, skip it and blank lines
+    if (/^`.*`$/.test(lines[0])) {
+      // Find the first non-blank line after the filename line
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim() !== '') {
+          // Return everything from that line onward as code
+          return lines.slice(i).join('\n');
+        }
+      }
+    }
+
+    return response.trim(); // fallback: return the whole thing
   }
 }

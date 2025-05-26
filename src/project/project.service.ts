@@ -31,7 +31,7 @@ export class ProjectService {
     const rootPath = path.join('code_base', id);
     this.ensureDirectoryExists(rootPath);
 
-    this.buildStructureRecursively(response, rootPath);
+    await this.buildStructureRecursively(response, rootPath, prompt);
 
     return { response };
   }
@@ -44,7 +44,11 @@ export class ProjectService {
   }
 
   // Recursively create folders and empty files
-  private buildStructureRecursively(obj: any, basePath: string) {
+  private async buildStructureRecursively(
+    obj: any,
+    basePath: string,
+    prompt: string,
+  ) {
     for (const key in obj) {
       const item = obj[key];
       const fullPath = path.join(basePath, item.full_pathname);
@@ -52,11 +56,29 @@ export class ProjectService {
       if (item.children && Object.keys(item.children).length > 0) {
         // It's a folder
         this.ensureDirectoryExists(fullPath);
-        this.buildStructureRecursively(item.children, basePath);
+        await this.buildStructureRecursively(item.children, basePath, prompt);
       } else {
         // It's a file
         if (!fs.existsSync(fullPath)) {
           fs.writeFileSync(fullPath, ''); // Create an empty file
+          const response = await this.llm.completion({
+            prompt: `Prompt - ${prompt} 
+            Based on the above prompt i have created the code structure
+            share me code content for below file ${item.full_pathname}
+            
+            Note - Do not explain anything just share the code content just in string or text format which i directly can copy and paste in the file and works properly.
+            
+            Share response in json only and key should be "code_content"`,
+          });
+          if (response.code_content) {
+            fs.writeFileSync(fullPath, response.code_content);
+          } else {
+            const sanitized_response = this.llm.sanitizeJsonResponse(response);
+            if (sanitized_response) {
+              fs.writeFileSync(fullPath, sanitized_response);
+              console.log('Wrote with sanitize', fullPath);
+            } else console.log('Bad response');
+          }
         }
       }
     }
