@@ -82,6 +82,14 @@ export class FileService {
         folder_path,
         files[index],
       );
+
+      // Create the file with empty content if it doesn't exist
+      if (!fs.existsSync(filePath)) {
+        // Ensure directory exists before writing the file
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, '', 'utf-8');
+      }
+
       const fileContent = fs.readFileSync(filePath, 'utf-8');
       finalizedData[files[index]] = fileContent;
     }
