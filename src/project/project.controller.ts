@@ -10,4 +10,9 @@ export class ProjectController {
   async funCreate(@Body() body) {
     return await this.service.create(body);
   }
+
+  @Post('promptToFiles')
+  async funPromptToFiles(@Body() body) {
+    return await this.service.promptToFiles(body);
+  }
 }

@@ -23,6 +23,86 @@ export class FileService {
     return {};
   }
 
+  async dictJson(reqData): Promise<any> {
+    const folder_path = reqData.folder_path;
+    if (!folder_path) {
+      return { error: 'folder_path is missing' };
+    }
+
+    const projectAbsolutePath = path.join(__dirname, '..', '..');
+    const dictPath = path.join(
+      projectAbsolutePath,
+      'code_base',
+      'nextjs',
+      folder_path,
+    );
+
+    if (!fs.existsSync(dictPath)) {
+      return { error: 'Path does not exist' };
+    }
+
+    const buildTree = (dirPath: string) => {
+      const name = path.basename(dirPath);
+      const stat = fs.statSync(dirPath);
+
+      if (stat.isFile()) {
+        return { name, type: 'file' };
+      }
+
+      // Ignore node_modules directory
+      if (name === 'node_modules' || name == '.next') {
+        return null;
+      }
+
+      const children = fs
+        .readdirSync(dirPath)
+        .map((child) => buildTree(path.join(dirPath, child)))
+        .filter(Boolean); // Remove nulls
+
+      return { name, type: 'folder', children };
+    };
+
+    try {
+      const tree = buildTree(dictPath);
+      return { data: tree };
+    } catch (err) {
+      console.error(err);
+      return { error: 'Failed to read directory' };
+    }
+  }
+
+  async filesToContent(files: string[], folder_path: string) {
+    const finalizedData = {};
+    for (let index = 0; index < files.length; index++) {
+      const projectAbsolutePath = join(__dirname, '..', '..');
+      const filePath = path.join(
+        projectAbsolutePath,
+        'code_base',
+        'nextjs',
+        folder_path,
+        files[index],
+      );
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      finalizedData[files[index]] = fileContent;
+    }
+
+    return finalizedData;
+  }
+
+  async updateFileContents(files: any, folder_path: string) {
+    for (const key in files) {
+      const projectAbsolutePath = join(__dirname, '..', '..');
+      const filePath = path.join(
+        projectAbsolutePath,
+        'code_base',
+        'nextjs',
+        folder_path,
+        key,
+      );
+      await fs.promises.writeFile(filePath, files[key], 'utf8');
+    }
+  }
+
   runNextJsScript(folderPath: string, name: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const script = 'bash';
