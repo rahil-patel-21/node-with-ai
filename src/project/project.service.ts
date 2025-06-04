@@ -7,10 +7,14 @@ import {
   CREATE_NEST_JS_PROJECT_PROMPT,
   CREATE_PYTHON_FAST_API_PROJECT_PROMPT,
 } from 'src/constants/strings';
+import { FileService } from 'src/file/file.service';
 
 @Injectable()
 export class ProjectService {
-  constructor(private readonly llm: LLMService) {}
+  constructor(
+    private readonly llm: LLMService,
+    private readonly fileService: FileService,
+  ) {}
 
   async create(reqData) {
     const backend = reqData.backend;
@@ -34,6 +38,49 @@ export class ProjectService {
     await this.buildStructureRecursively(response, rootPath, prompt);
 
     return { response };
+  }
+
+  async promptToFiles(reqData) {
+    const prompt = reqData.prompt;
+    const folder_path = reqData.folder_path;
+    if (!prompt) {
+      return { error: 'prompt' };
+    }
+    if (!folder_path) {
+      return { error: 'folder_path' };
+    }
+
+    let dictJson = await this.fileService.dictJson({ folder_path });
+    dictJson = dictJson.data;
+
+    const input_prompt = `Project Structure - ${JSON.stringify(dictJson)}
+
+    Instruction - Reply only in JSON Key name should be "files" (Array of accurate file names). No explanation. Ask for minimal required files to proceed with the changes. 
+
+    User Prompt - ${prompt}`;
+
+    const response = await this.llm.completion({ prompt: input_prompt });
+    if (response.files) {
+      const codeContent = await this.fileService.filesToContent(
+        response.files,
+        folder_path,
+      );
+      const input_prompt = `Based on provided file and code please make necessary changes in the code (Make necessary changes only do not break code) if any file has empty content which means file is new and empty you need to write the code in that (If required)
+      
+      Instruction - If there is no changes in file then do not return that file name and code content, Share response in strict json only Key names should be file name and value is code content
+
+      Code Content - ${JSON.stringify(codeContent)}
+
+      User Prompt - ${prompt}`;
+
+      const code_response = await this.llm.completion({ prompt: input_prompt });
+
+      await this.fileService.updateFileContents(code_response, folder_path);
+
+      return {};
+    }
+
+    return { error: 'Error while detecting file changes ...' };
   }
 
   // Ensure a directory exists or create it
