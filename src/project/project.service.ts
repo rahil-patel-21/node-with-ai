@@ -55,7 +55,8 @@ export class ProjectService {
 
     const input_prompt = `Project Structure - ${JSON.stringify(dictJson)}
 
-    Instruction - Reply only in JSON Key name should be "files" (Array of accurate file names). No explanation. Ask for minimal required files to proceed with the changes. 
+    Instruction - Reply only in JSON Key name should be "files" (Array of accurate file names). No explanation. Ask for minimal required files to proceed with the changes.
+    Check component folder as well to map the dependency and relations
 
     User Prompt - ${prompt}`;
 
