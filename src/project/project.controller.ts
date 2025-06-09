@@ -1,6 +1,6 @@
 // Imports
 import { ProjectService } from './project.service';
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 
 @Controller('project')
 export class ProjectController {
@@ -14,5 +14,10 @@ export class ProjectController {
   @Post('promptToFiles')
   async funPromptToFiles(@Body() body) {
     return await this.service.promptToFiles(body);
+  }
+
+  @Get('codeBase')
+  async funCodeBase(@Query() query) {
+    return await this.service.codeBase(query);
   }
 }
