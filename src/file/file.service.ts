@@ -71,6 +71,54 @@ export class FileService {
     }
   }
 
+  async fullCodeJson(
+    target_path: string,
+  ): Promise<Record<string, string> | { error: string }> {
+    const projectAbsolutePath = path.join(__dirname, '..', '..');
+    const baseDir = path.join(
+      projectAbsolutePath,
+      'code_base',
+      'nextjs',
+      target_path,
+    );
+
+    if (!fs.existsSync(baseDir)) {
+      return { error: 'Path does not exist' };
+    }
+
+    const result: Record<string, string> = {};
+
+    // Folders to exclude
+    const excludeDirs = new Set(['node_modules', 'dist', '.next', '.git']);
+
+    const readFilesRecursively = async (
+      dir: string,
+      relativePrefix = '',
+    ): Promise<void> => {
+      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (excludeDirs.has(entry.name)) {
+          continue;
+        }
+
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.join(relativePrefix, entry.name);
+
+        if (entry.isDirectory()) {
+          await readFilesRecursively(fullPath, relativePath);
+        } else {
+          const fileContent = await fs.promises.readFile(fullPath, 'utf-8');
+          result[relativePath] = fileContent;
+        }
+      }
+    };
+
+    await readFilesRecursively(baseDir);
+
+    return result;
+  }
+
   async filesToContent(files: string[], folder_path: string) {
     const finalizedData = {};
     for (let index = 0; index < files.length; index++) {

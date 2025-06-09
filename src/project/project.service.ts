@@ -84,6 +84,17 @@ export class ProjectService {
     return { error: 'Error while detecting file changes ...' };
   }
 
+  async codeBase(reqData) {
+    const project_id = reqData.project_id;
+    if (!project_id) {
+      return { error: 'project_id is missing' };
+    }
+
+    const data = await this.fileService.fullCodeJson(project_id);
+
+    return { success: true, data };
+  }
+
   // Ensure a directory exists or create it
   private ensureDirectoryExists(dirPath: string) {
     if (!fs.existsSync(dirPath)) {
