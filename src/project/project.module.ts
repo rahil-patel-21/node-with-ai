@@ -5,9 +5,10 @@ import { FileModule } from 'src/file/file.module';
 import { ProjectService } from './project.service';
 import { UtilsModule } from 'src/utils/utils.module';
 import { ProjectController } from './project.controller';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
-  imports: [FileModule, UtilsModule],
+  imports: [FileModule, SocketModule, UtilsModule],
   controllers: [ProjectController],
   providers: [LLMService, ProjectService],
 })

@@ -7,6 +7,8 @@ import { nOneCompletionChat } from 'src/constants/network';
 
 const llm_session_data = {};
 
+let llm_selection = 2;
+
 @Injectable()
 export class LLMService implements OnModuleInit {
   constructor(private readonly api: ApiService) {}
@@ -16,6 +18,10 @@ export class LLMService implements OnModuleInit {
   }
 
   private async initPrePlannedSession() {
+    if (llm_selection != 1) {
+      return {};
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     await this.initSession({ sessionId: 'pre_planned_01' }).catch((_) => {});
 
@@ -118,6 +124,10 @@ export class LLMService implements OnModuleInit {
     const prompt = reqData.prompt;
     let sessionId = reqData.sessionId;
 
+    if (reqData?.llm_selection == 2) {
+      return await this.completionLLM2(prompt);
+    }
+
     if (!sessionId) {
       sessionId = this.getPrePlannedSessionId();
     }
@@ -148,6 +158,118 @@ export class LLMService implements OnModuleInit {
     }
 
     return response;
+  }
+
+  async completionLLM2(prompt) {
+    const url = Env.llm.two.baseUrl + 'chat/completions';
+    const body = {
+      stream: true,
+      model: 'main_chat',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      params: {},
+      tool_servers: [],
+      features: {
+        image_generation: false,
+        code_interpreter: false,
+        web_search: false,
+        auto_web_search: false,
+        preview_mode: false,
+      },
+      variables: {
+        '{{USER_NAME}}': 'Guest-1749374780129',
+        '{{USER_LOCATION}}': 'Unknown',
+        '{{CURRENT_DATETIME}}': '2025-06-12 00:20:56',
+        '{{CURRENT_DATE}}': '2025-06-12',
+        '{{CURRENT_TIME}}': '00:20:56',
+        '{{CURRENT_WEEKDAY}}': 'Thursday',
+        '{{CURRENT_TIMEZONE}}': 'Asia/Calcutta',
+        '{{USER_LANGUAGE}}': 'en-US',
+      },
+      model_item: {
+        id: 'main_chat',
+        name: 'GLM-4-32B',
+        owned_by: 'openai',
+        openai: {
+          id: 'main_chat',
+          name: 'main_chat',
+          owned_by: 'openai',
+          openai: {
+            id: 'main_chat',
+          },
+          urlIdx: 0,
+        },
+        urlIdx: 0,
+        info: {
+          id: 'main_chat',
+          user_id: '7080a6c5-5fcc-4ea4-a85f-3b3fac905cf2',
+          base_model_id: null,
+          name: 'GLM-4-32B',
+          params: {
+            max_tokens: 8096,
+            top_p: 0.95,
+            temperature: 0.6,
+            top_k: 40,
+          },
+          meta: {
+            profile_image_url: '/static/favicon.png',
+            description: 'Great for everyday tasks',
+            capabilities: {
+              vision: false,
+              citations: true,
+              preview_mode: true,
+              web_search: true,
+              language_detection: true,
+              restore_n_source: true,
+              mcp: false,
+            },
+            tags: [],
+          },
+          access_control: null,
+          is_active: true,
+          updated_at: 1744522361,
+          created_at: 1744522361,
+        },
+        actions: [],
+        tags: [],
+      },
+      chat_id: 'local',
+      id: '0288c328-8684-4112-bfb4-1eefd9779eec',
+    };
+    const headers = {
+      Authorization: Env.llm.two.authToken,
+    };
+
+    const response = await this.api.post(url, body, headers);
+    const spans = response.split('data: ');
+    const target_str = spans[spans.length - 1].trim();
+    let respo = JSON.parse(target_str);
+    respo = respo.data?.data ?? respo.data;
+    respo = respo.content;
+
+    if (typeof respo == 'string') {
+      try {
+        respo = respo.replace('```json', '');
+        respo = respo.replace('```', '');
+        respo = respo.replace('nest-backend-structure.json', '');
+        respo = respo.replace('code-structure.json', '');
+        respo = respo.replace('code-structure/folder-structure.json', '');
+        respo = respo.replace('``', '');
+        respo = respo.trim();
+
+        if (respo.includes('{')) {
+          respo = JSON.parse(respo);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    return respo;
   }
 
   sleep(ms: number) {

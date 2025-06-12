@@ -1,18 +1,20 @@
 // Imports
 import * as fs from 'fs';
 import * as path from 'path';
-import { Injectable } from '@nestjs/common';
-import { LLMService } from 'src/llm/llm.service';
 import {
   CREATE_NEST_JS_PROJECT_PROMPT,
   CREATE_PYTHON_FAST_API_PROJECT_PROMPT,
 } from 'src/constants/strings';
+import { Injectable } from '@nestjs/common';
+import { LLMService } from 'src/llm/llm.service';
 import { FileService } from 'src/file/file.service';
+import { SocketGateway } from 'src/socket/socket.service';
 
 @Injectable()
 export class ProjectService {
   constructor(
     private readonly llm: LLMService,
+    private readonly socket: SocketGateway,
     private readonly fileService: FileService,
   ) {}
 
@@ -50,8 +52,21 @@ export class ProjectService {
       return { error: 'folder_path' };
     }
 
+    this.socket.emitToSession('404', 'code_changes', {
+      success: true,
+      type: 'chat',
+      content: 'Thinking ...',
+    });
+
     let dictJson = await this.fileService.dictJson({ folder_path });
     dictJson = dictJson.data;
+
+    this.socket.emitToSession('404', 'code_changes', {
+      success: true,
+      type: 'animation',
+      loading: 20,
+      content: 'Checking for affected code files and directories',
+    });
 
     const input_prompt = `Project Structure - ${JSON.stringify(dictJson)}
 
@@ -60,8 +75,18 @@ export class ProjectService {
 
     User Prompt - ${prompt}`;
 
-    const response = await this.llm.completion({ prompt: input_prompt });
+    const response = await this.llm.completion({
+      prompt: input_prompt,
+      llm_selection: 2,
+    });
     if (response.files) {
+      this.socket.emitToSession('404', 'code_changes', {
+        success: true,
+        type: 'animation',
+        loading: 50,
+        content: `Total ${response.files.length} file changes are there`,
+      });
+
       const codeContent = await this.fileService.filesToContent(
         response.files,
         folder_path,
@@ -76,7 +101,28 @@ export class ProjectService {
 
       const code_response = await this.llm.completion({ prompt: input_prompt });
 
+      this.socket.emitToSession('404', 'code_changes', {
+        success: true,
+        type: 'animation',
+        loading: 70,
+        content: `Making file changes ...`,
+      });
+
       await this.fileService.updateFileContents(code_response, folder_path);
+
+      this.socket.emitToSession('404', 'code_changes', {
+        success: true,
+        type: 'animation',
+        loading: 90,
+        content: `Deploying the changes to vercel ...`,
+      });
+
+      this.socket.emitToSession('404', 'code_changes', {
+        success: true,
+        type: 'animation',
+        loading: 100,
+        content: `Successfully Deployed !`,
+      });
 
       return {};
     }
