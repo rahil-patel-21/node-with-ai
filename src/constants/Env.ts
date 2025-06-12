@@ -9,5 +9,9 @@ export const Env = {
       baseUrl: process.env.LLM_01_BASE_URL,
       origin: process.env.LLM_01_ORIGIN_URL,
     },
+    two: {
+      baseUrl: process.env.LLM_02_BASE_URL,
+      authToken: process.env.LLM_02_AUTH_TOKEN,
+    },
   },
 };

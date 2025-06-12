@@ -50,7 +50,7 @@ export class FileService {
       }
 
       // Ignore node_modules directory
-      if (name === 'node_modules' || name == '.next') {
+      if (name === 'node_modules' || name == '.next' || name == '.git') {
         return null;
       }
 
