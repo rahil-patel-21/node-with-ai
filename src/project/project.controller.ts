@@ -20,4 +20,14 @@ export class ProjectController {
   async funCodeBase(@Query() query) {
     return await this.service.codeBase(query);
   }
+
+  @Post('summarizeDict')
+  async funSummarizeDict(@Body() body) {
+    return await this.service.summarizeDict(body);
+  }
+
+  @Post('embedd')
+  async funEmbedd(@Body() body) {
+    return await this.service.embedd(body);
+  }
 }

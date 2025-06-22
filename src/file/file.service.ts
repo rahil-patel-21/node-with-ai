@@ -2,8 +2,10 @@
 import * as fs from 'fs';
 import { join } from 'path';
 import * as path from 'path';
+import * as fg from 'fast-glob';
 import { spawn } from 'child_process';
 import { Injectable } from '@nestjs/common';
+import { extractCodeChunksFromFile } from './file.extractor';
 
 interface FileNode {
   full_pathname: string;
@@ -13,6 +15,76 @@ interface FileNode {
 @Injectable()
 export class FileService {
   constructor() {}
+
+  async readProjectFiles(reqData) {
+    const project_name = reqData.project_name;
+    const files = await fg(['**/*.{ts,tsx,js,jsx,md,json}'], {
+      cwd: `code_base/nextjs/${project_name}`,
+      ignore: ['node_modules/**', '.next/**', '.git/**', 'package-lock.json'],
+      absolute: true,
+    });
+
+    const projectAbsolutePath = join(
+      __dirname,
+      '..',
+      '..',
+      'code_base',
+      'nextjs',
+    );
+
+    const fileContents = await Promise.all(
+      files.map(async (filepath) => ({
+        filetype: path.extname(filepath),
+        filepath: filepath.replace(
+          `${projectAbsolutePath}/${project_name}/`,
+          '',
+        ),
+        content: await fs.promises.readFile(filepath, 'utf-8'),
+      })),
+    );
+
+    if (reqData.needChunk === true) {
+      const chunk_list = [];
+
+      for (const file of files) {
+        const chunks = await extractCodeChunksFromFile(file); // AST-based semantic chunking
+        for (const chunk of chunks) {
+          chunk_list.push({
+            content: chunk.code,
+            metadata: {
+              name: chunk.name,
+              kind: chunk.kind,
+              filepath: chunk.filepath,
+              startLine: chunk.startLine,
+              endLine: chunk.endLine,
+              project: reqData.project_name,
+            },
+          });
+        }
+      }
+
+      return chunk_list;
+    }
+
+    return fileContents;
+  }
+
+  chunkText(content: string, maxChars = 1500): string[] {
+    const lines = content.split('\n');
+    const chunks: string[] = [];
+    let chunk: string[] = [];
+
+    for (const line of lines) {
+      chunk.push(line);
+      if (chunk.join('\n').length >= maxChars) {
+        chunks.push(chunk.join('\n'));
+        chunk = [];
+      }
+    }
+
+    if (chunk.length > 0) chunks.push(chunk.join('\n'));
+    return chunks;
+  }
 
   async createNextJs(reqData) {
     const projectName = reqData.projectName;
@@ -115,6 +187,51 @@ export class FileService {
     };
 
     await readFilesRecursively(baseDir);
+
+    return result;
+  }
+
+  async fullCodeWithContentJson(
+    target_path: string,
+  ): Promise<Record<string, string> | { error: string }> {
+    const projectAbsolutePath = path.join(__dirname, '..', '..');
+    const baseDir = path.join(
+      projectAbsolutePath,
+      'code_base',
+      'nextjs',
+      target_path,
+    );
+
+    if (!fs.existsSync(baseDir)) {
+      return { error: 'Path does not exist' };
+    }
+
+    const result: Record<string, string> = {};
+
+    // Directories to exclude
+    const excludeDirs = new Set(['node_modules', 'dist', '.next', '.git']);
+
+    const readFilesRecursively = async (
+      dir: string,
+      baseDir: string,
+    ): Promise<void> => {
+      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (excludeDirs.has(entry.name)) continue;
+
+        const fullPath = path.join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+          await readFilesRecursively(fullPath, baseDir);
+        } else {
+          const fileContent = await fs.promises.readFile(fullPath, 'utf-8');
+          result[fullPath.replace(`${baseDir}/`, '')] = fileContent;
+        }
+      }
+    };
+
+    await readFilesRecursively(baseDir, baseDir);
 
     return result;
   }

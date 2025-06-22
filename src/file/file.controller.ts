@@ -15,4 +15,9 @@ export class FileController {
   async funDictJson(@Query() query) {
     return await this.service.dictJson(query);
   }
+
+  @Post('readProjectFiles')
+  async funReadProjectFiles(@Body() body) {
+    return await this.service.readProjectFiles(body);
+  }
 }

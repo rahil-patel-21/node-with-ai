@@ -1,9 +1,12 @@
 // Imports
 import * as puppeteer from 'puppeteer';
 import { Env } from 'src/constants/Env';
-import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ApiService } from 'src/utils/api.service';
-import { nOneCompletionChat } from 'src/constants/network';
+import {
+  nOneCompletionChat,
+  nThreeCompletionChat,
+} from 'src/constants/network';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 const llm_session_data = {};
 
@@ -126,6 +129,8 @@ export class LLMService implements OnModuleInit {
 
     if (reqData?.llm_selection == 2) {
       return await this.completionLLM2(prompt);
+    } else if (reqData?.llm_selection == 3) {
+      return await this.completionLLM3(prompt);
     }
 
     if (!sessionId) {
@@ -151,7 +156,9 @@ export class LLMService implements OnModuleInit {
         response = response.replace('code-structure/folder-structure.json', '');
         response = response.replace('``', '');
         response = response.trim();
-        response = JSON.parse(response);
+        if (response.includes('{')) {
+          response = JSON.parse(response);
+        }
       } catch (error) {
         console.log(response);
       }
@@ -262,6 +269,56 @@ export class LLMService implements OnModuleInit {
         respo = respo.trim();
 
         if (respo.includes('{')) {
+          try {
+            respo = JSON.parse(respo);
+          } catch (error) {
+            if (respo.startsWith('{') && !respo.endsWith('}')) {
+              respo = respo + '}';
+              try {
+                respo = JSON.parse(respo);
+              } catch (error) {
+                console.log(error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    return respo;
+  }
+
+  async completionLLM3(prompt) {
+    const url = nThreeCompletionChat + `?key=${Env.llm.three.authToken}`;
+    const body = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+    };
+    const response = await this.api.post(url, body);
+    const tokenUsage = response.usageMetadata?.totalTokenCount ?? 0;
+    console.log({ tokenUsage });
+
+    let respo = (response.candidates ?? [{}])[0].content?.parts[0].text ?? '';
+    if (typeof respo == 'string') {
+      try {
+        respo = respo.replace('```json', '');
+        respo = respo.replace('```', '');
+        respo = respo.replace('nest-backend-structure.json', '');
+        respo = respo.replace('code-structure.json', '');
+        respo = respo.replace('code-structure/folder-structure.json', '');
+        respo = respo.replace('``', '');
+        respo = respo.trim();
+
+        if (respo.includes('{')) {
           respo = JSON.parse(respo);
         }
       } catch (error) {
@@ -270,6 +327,30 @@ export class LLMService implements OnModuleInit {
     }
 
     return respo;
+  }
+
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    const cleanTexts = texts
+      .map((t) => t?.trim())
+      .filter((t) => t && t.length > 0);
+
+    const url = 'https://api.openai.com/v1/embeddings';
+    const headers = {
+      Authorization: `Bearer ${Env.llm.openAi.apiKey}`,
+      'Content-Type': 'application/json',
+    };
+    const body = {
+      input: cleanTexts,
+      model: 'text-embedding-3-small',
+    };
+
+    try {
+      const response = await this.api.post(url, body, headers);
+      return response.data.map((item: any) => item.embedding);
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      throw new Error('Batch embedding API call failed');
+    }
   }
 
   sleep(ms: number) {

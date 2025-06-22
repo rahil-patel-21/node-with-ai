@@ -7,6 +7,7 @@ import { UtilsModule } from 'src/utils/utils.module';
 @Module({
   imports: [UtilsModule],
   controllers: [LLMController],
+  exports: [LLMService],
   providers: [LLMService],
 })
 export class LLMModule {}
